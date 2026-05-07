@@ -34,8 +34,7 @@ export default function Execute() {
     return () => clearInterval(interval.current);
   }, [running]);
 
-  if (!cl) return null;
-  const items: any[] = cl.items || [];
+  const items: any[] = cl?.items || [];
 
   const counts = useMemo(() => {
     let p = 0, f = 0, e = 0;
@@ -47,6 +46,8 @@ export default function Execute() {
     });
     return { p, f, e };
   }, [items, draft.executions]);
+
+  if (!cl) return null;
 
   const pct = items.length ? Math.round(((counts.p + counts.f) / items.length) * 100) : 0;
   const allDone = counts.e === 0 && items.length > 0;

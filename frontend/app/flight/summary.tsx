@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Image,
   KeyboardAvoidingView, Platform,
@@ -23,10 +23,11 @@ export default function Summary() {
   const cl = draft.checklist;
   const [busy, setBusy] = useState(false);
 
-  if (!cl) {
-    router.replace("/(tabs)/home");
-    return null;
-  }
+  useEffect(() => {
+    if (!cl) router.replace("/(tabs)/home");
+  }, [cl]);
+
+  if (!cl) return null;
 
   const failedItems = (cl.items || []).filter((it: any) => draft.executions[it.id]?.state === "fail");
   const passedCount = (cl.items || []).filter((it: any) => draft.executions[it.id]?.state === "pass").length;
