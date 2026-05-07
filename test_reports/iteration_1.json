@@ -1,0 +1,63 @@
+{
+  "summary": "End-to-end test of FlyReady v1 MVP: 14/14 backend pytest cases pass against the public preview URL; full mobile UI flow on Expo web (login -> home -> 3 built-in templates -> operator details -> 42-item execute -> summary -> save flight -> history -> flight record -> profile -> FAB -> manual checklist creation -> QR generation) all verified visually and persisted in DB.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "app/flight/summary.tsx",
+        "issue": "After tapping 'Save flight record', flight is saved to backend and Alert.alert('Flight saved', ...) fires, but the OK button's onPress callback never executes on react-native-web — so draft.reset() and router.replace('/(tabs)/home') never run. User remains on /flight/summary even though save succeeded. This is a known react-native-web limitation: window.alert (default RN-web Alert renderer) does not support per-button onPress callbacks. Fix: use a custom Modal or Platform.OS === 'web' branch that calls the onPress directly after window.alert returns, or replace with a custom in-app banner/toast and explicit redirect.",
+        "testID": "sum-save-btn",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "operator-details",
+        "issues": ["Map preview shows fallback text ('Map preview is available on the iOS / Android build') on web — expected behaviour per spec, but worth confirming end-user sees the same on native build."]
+      }
+    ],
+    "react_native_issues": [
+      {
+        "component": "various (expo SDK)",
+        "issue": "Expo doctor reports several packages out of sync with installed Expo version (expo-camera, expo-location, expo-print, expo-secure-store, react-native-maps, react-native-svg, async-storage, netinfo, expo-file-system, expo-image-picker, expo-sharing). App still bundles and runs on web, but native build may break. Recommend `npx expo install --check` and aligning versions."
+      },
+      {
+        "component": "global styles",
+        "issue": "Console warnings: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' Non-blocking but should be migrated."
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_flyready_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Fix Alert.alert OK-callback issue on web in app/flight/summary.tsx so the user is auto-redirected to home after save. Suggested approach: const onSaved = () => { draft.reset(); router.replace('/(tabs)/home'); }; if (Platform.OS === 'web') { window.alert(`Flight saved...`); onSaved(); } else { Alert.alert(..., [{ text: 'OK', onPress: onSaved }]); }",
+    "Run `npx expo install --check` in /app/frontend to align package versions with installed Expo SDK (10+ packages flagged).",
+    "Optional polish: add a confirmation Modal (not Alert.alert) for the 'Save with issues' flow so it works consistently on web; same alert-callback issue applies."
+  ],
+  "critical_code_review_comments": [
+    "server.py is single-file (730 lines) — borderline; consider splitting routers (auth, checklists, flight_logs, weather) into modules if it grows further.",
+    "PUT /api/checklists regenerates new item ids on every update which would break execution history references; acceptable for MVP since flight_logs snapshot executions by item_id at save time, but flag for v2.",
+    "/api/weather correctly returns 503 when key empty — matches spec.",
+    "All endpoints strip _id and password_hash via serialize() — no leakage observed.",
+    "JWT_SECRET, ADMIN_*, TEST_PILOT_* all sourced from env (good)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_flyready_api.py (created)",
+    "/app/test_reports/iteration_1.json (created)"
+  ],
+  "success_rate": {
+    "backend": "100% (14/14 pytest)",
+    "frontend": "~95% (all primary testIDs and flows work; only the post-save auto-redirect on web is broken due to RN-web Alert limitation)"
+  },
+  "seed_data_creation": "Auto-seeded via backend startup: admin@flyready.app / Admin@123 and pilot@flyready.app / Pilot@123, each with the 3 built-in templates. Tests also created TEST_-prefixed users/checklists which were cleaned up where applicable (some TEST_ artifacts may remain in the pilot account from manual UI flow — harmless).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend public URL: https://flight-ops-16.preview.emergentagent.com. Pytest suite at /app/backend/tests/test_flyready_api.py is reusable and self-contained (Bearer auth, seeded users). Frontend testIDs to know about: home-screen, home-scan-card, home-add-checklist-fab, checklist-card-{id}, login-email-input/password-input/submit-btn, onboarding-skip/next-btn, new-method-{built-in,pdf,photo,voice,manual}, new-name-input, new-type-multirotor, new-phase-preflight, new-item-add, new-item-input-0, new-save-btn, qr-screen, qr-done-btn, operator-details-screen, op-pilot, op-flightid, op-begin-btn, execute-screen, exec-pass-{id}, exec-fail-{id}, execute-complete-btn, summary-screen, sum-severity-{none|minor|moderate|critical}, sum-remarks, sum-save-btn, history-screen, history-group-{id}, flight-row-{id}, flight-record-screen, flight-pdf-btn, profile-screen, profile-logout. The 'Next: review items' button uses literal text. To click it, prefer page.get_by_text('Next: review items') — there's no testID on that nav button.",
+  "rca_of_issue": "Issue: Tapping 'Save flight record' on /flight/summary saves the flight log (verified via API: stats flights count went 2 -> 3; Multirotor flight_count 0 -> 1) but the UI does NOT navigate back to /home. Root cause: react-native-web's default Alert.alert implementation falls back to window.alert(), which is synchronous and does not support per-button onPress callbacks. The code in app/flight/summary.tsx line ~109-114 supplies an OK button with onPress: () => { draft.reset(); router.replace('/(tabs)/home'); } — that callback never fires on web. Reproduction: login as pilot, open any built-in checklist, fill operator pilot, begin checklist, mark all items pass, complete, fill summary, tap Save. Observed: stays on /flight/summary. Mitigation in summary.tsx: branch on Platform.OS === 'web' and call the success-handler immediately after window.alert returns (or use a custom Modal that works cross-platform)."
+}
