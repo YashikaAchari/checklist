@@ -6,9 +6,9 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import * as ImagePicker from "expo-image-picker";
 import { palette, lightTheme as t, droneTypeLabel } from "../../src/theme";
 import { api, formatApiError } from "../../src/api";
+import { PhotoSourceSheet } from "../../src/PhotoSourceSheet";
 
 type Method = "built_in" | "pdf_upload" | "photo_upload" | "voice" | "manual";
 type DroneType = "multirotor" | "fixed_wing" | "heavy_lift" | "vtol" | "custom";
@@ -239,8 +239,8 @@ export default function NewChecklist() {
                 <Image source={{ uri: photo }} style={styles.photoPreview} />
               ) : (
                 <>
-                  <Feather name="image" size={28} color={palette.primary} />
-                  <Text style={{ color: palette.primary, fontWeight: "600", marginTop: 6 }}>Pick from gallery</Text>
+                  <Feather name="camera" size={28} color={palette.primary} />
+                  <Text style={{ color: palette.primary, fontWeight: "600", marginTop: 6 }}>Take photo or choose from gallery</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -252,6 +252,13 @@ export default function NewChecklist() {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
+        <PhotoSourceSheet
+          visible={photoSheetOpen}
+          onClose={() => setPhotoSheetOpen(false)}
+          onPicked={({ dataUrl }) => setPhoto(dataUrl)}
+          quality={0.5}
+          title="Add drone photo"
+        />
       </SafeAreaView>
     );
   }

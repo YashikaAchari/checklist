@@ -2,13 +2,14 @@ import React, { useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Image,
   KeyboardAvoidingView, Platform,
-} from "react-native";import { useRouter } from "expo-router";
+} from "react-native";
+import { useRouter } from "expo-router";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import * as ImagePicker from "expo-image-picker";
 import { palette, lightTheme as t } from "../../src/theme";
 import { useFlightDraft } from "../../src/flightDraft";
 import { api, formatApiError } from "../../src/api";
+import { PhotoSourceSheet } from "../../src/PhotoSourceSheet";
 
 const SEVERITIES = [
   { id: "none", label: "None", color: t.textSecondary },
@@ -22,6 +23,7 @@ export default function Summary() {
   const draft = useFlightDraft();
   const cl = draft.checklist;
   const [busy, setBusy] = useState(false);
+  const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
 
   useEffect(() => {
     if (!cl) router.replace("/(tabs)/home");
@@ -32,12 +34,9 @@ export default function Summary() {
   const failedItems = (cl.items || []).filter((it: any) => draft.executions[it.id]?.state === "fail");
   const passedCount = (cl.items || []).filter((it: any) => draft.executions[it.id]?.state === "pass").length;
 
-  const pickPhoto = async () => {
-    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, base64: true, quality: 0.4 });
-    if (!r.canceled && r.assets?.[0]?.base64) {
-      const url = `data:image/jpeg;base64,${r.assets[0].base64}`;
-      draft.patch({ media: [...draft.media, { type: "photo", file_url: url }] });
-    }
+  const pickPhoto = () => setPhotoSheetOpen(true);
+  const onPhotoPicked = ({ dataUrl }: { dataUrl: string }) => {
+    draft.patch({ media: [...draft.media, { type: "photo", file_url: dataUrl }] });
   };
 
   const removeMedia = (idx: number) => {
@@ -222,6 +221,14 @@ export default function Summary() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      <PhotoSourceSheet
+        visible={photoSheetOpen}
+        onClose={() => setPhotoSheetOpen(false)}
+        onPicked={onPhotoPicked}
+        quality={0.4}
+        title="Add photo to flight record"
+      />
     </SafeAreaView>
   );
 }
