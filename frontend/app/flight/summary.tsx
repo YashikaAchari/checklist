@@ -106,12 +106,20 @@ export default function Summary() {
         media: draft.media,
       };
       const { data } = await api.post("/flight_logs", payload);
-      Alert.alert("Flight saved", `Flight #${String(data.serial_number).padStart(3, "0")} (${data.flight_id}) recorded.`, [
-        { text: "OK", onPress: () => {
-          draft.reset();
-          router.replace("/(tabs)/home");
-        }},
-      ]);
+      const goHome = () => {
+        // Navigate first so Execute/Summary unmount BEFORE we clear the draft.
+        router.replace("/(tabs)/home");
+        setTimeout(() => draft.reset(), 50);
+      };
+      const msg = `Flight saved: #${String(data.serial_number).padStart(3, "0")} (${data.flight_id})`;
+      if (Platform.OS === "web") {
+        // window.alert doesn't fire onPress callbacks on react-native-web
+        // eslint-disable-next-line no-alert
+        window.alert(msg);
+        goHome();
+      } else {
+        Alert.alert("Flight saved", msg, [{ text: "OK", onPress: goHome }]);
+      }
     } catch (e: any) {
       Alert.alert("Error", formatApiError(e));
     } finally {
