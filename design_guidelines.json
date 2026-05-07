@@ -1,0 +1,197 @@
+{
+  "theme": "Light/Dark Natively",
+  "archetype": "Archetype 4 (Swiss & High-Contrast) adapted for Tactical Field Operations",
+  "design_philosophy": "A professional, rugged, and field-trustworthy mobile application for drone pilots. Flat, clean, and minimal. The interface serves as a command center and logbook: no gradients, no heavy drop-shadows. Emphasizes operational clarity over playful elements.",
+  "colors": {
+    "primary": "#0C447C",
+    "secondary": "#1D9E75",
+    "success": "#1D9E75",
+    "warning": "#F59E0B",
+    "danger": "#E24B4A",
+    "light_mode": {
+      "background": "#F5F5F5",
+      "surface": "#FFFFFF",
+      "text_primary": "#212121",
+      "text_secondary": "#888888",
+      "border": "#E0E0E0",
+      "connectivity_dot_online": "#1D9E75",
+      "connectivity_dot_offline": "#888888"
+    },
+    "dark_mode": {
+      "background": "#1a1a2e",
+      "surface": "#252541",
+      "text_primary": "#F5F5F5",
+      "text_secondary": "#A0A0A0",
+      "border": "#363653",
+      "connectivity_dot_online": "#1D9E75",
+      "connectivity_dot_offline": "#888888"
+    }
+  },
+  "typography": {
+    "heading_font": "Inter",
+    "body_font": "Roboto",
+    "hierarchy": {
+      "h1": { "fontFamily": "Inter-SemiBold", "fontSize": 32, "lineHeight": 40, "letterSpacing": -0.5 },
+      "h2": { "fontFamily": "Inter-SemiBold", "fontSize": 24, "lineHeight": 32, "letterSpacing": -0.5 },
+      "h3": { "fontFamily": "Inter-SemiBold", "fontSize": 20, "lineHeight": 28 },
+      "h4": { "fontFamily": "Inter-Medium", "fontSize": 16, "lineHeight": 24 },
+      "body": { "fontFamily": "Roboto-Regular", "fontSize": 16, "lineHeight": 24 },
+      "body_small": { "fontFamily": "Roboto-Regular", "fontSize": 14, "lineHeight": 20 },
+      "label": { "fontFamily": "Inter-Medium", "fontSize": 12, "lineHeight": 16, "textTransform": "uppercase", "letterSpacing": 0.5 }
+    },
+    "rules": {
+      "never_use": ["ALL CAPS (except strictly for tiny overlines/labels)"],
+      "minimum_size": "14px for interactive elements"
+    }
+  },
+  "spacing_and_layout": {
+    "scale": {
+      "xs": 4,
+      "sm": 8,
+      "md": 16,
+      "lg": 24,
+      "xl": 32,
+      "2xl": 48
+    },
+    "container_padding": 16,
+    "border_radius": {
+      "card": 12,
+      "button": 12,
+      "pill": 999
+    },
+    "border_width": {
+      "default": 0.5
+    }
+  },
+  "icons": {
+    "library": "@expo/vector-icons",
+    "sets": ["Feather", "Ionicons", "MaterialCommunityIcons"],
+    "style": "Outline exclusively. Never filled. Never emoji.",
+    "sizing": {
+      "small": 16,
+      "medium": 24,
+      "large": 32
+    }
+  },
+  "motion": {
+    "transitions": "Smooth slide + fade transitions for screen navigation.",
+    "feedback": "Haptic feedback mandatory on critical checklist actions (tick/cross/submit)."
+  },
+  "components": {
+    "buttons": {
+      "primary": {
+        "backgroundColor": "primary",
+        "textColor": "surface",
+        "minHeight": 48,
+        "borderRadius": 12,
+        "alignItems": "center",
+        "justifyContent": "center",
+        "borderWidth": 0
+      },
+      "secondary": {
+        "backgroundColor": "transparent",
+        "textColor": "primary",
+        "borderColor": "primary",
+        "borderWidth": 1,
+        "minHeight": 48,
+        "borderRadius": 12
+      },
+      "action_success": {
+        "backgroundColor": "success",
+        "textColor": "surface"
+      },
+      "action_danger": {
+        "backgroundColor": "danger",
+        "textColor": "surface"
+      }
+    },
+    "cards": {
+      "default": {
+        "backgroundColor": "surface",
+        "borderRadius": 12,
+        "borderWidth": 0.5,
+        "borderColor": "border",
+        "padding": 16,
+        "shadow": "none"
+      }
+    },
+    "progress_bar": {
+      "trackColor": "border",
+      "fillColor": "secondary"
+    },
+    "inputs": {
+      "text": {
+        "minHeight": 48,
+        "borderWidth": 0.5,
+        "borderColor": "border",
+        "borderRadius": 8,
+        "paddingHorizontal": 16,
+        "backgroundColor": "surface",
+        "fontSize": 16
+      }
+    }
+  },
+  "screens": {
+    "splash_screen": {
+      "layout": "Centered logo (drone silhouette with 4 propellers + green checkmark) on deep navy blue background. Tagline at bottom: 'Preflight · Inflight · Postflight' in white/text_secondary.",
+      "background_color": "#0C447C"
+    },
+    "auth_onboarding": {
+      "layout": "3 slides. Top illustration/icon, H1 text, descriptive body. Bottom pagination dots + Primary CTA."
+    },
+    "home": {
+      "top_bar": "Logo left. Avatar right. Green/grey connectivity dot absolutely positioned near avatar. Notification bell.",
+      "scanner_card": "Large card with teal background or teal border. prominent QR code icon. CTA: 'Scan Drone QR'.",
+      "maintenance_banner": "Conditional visibility. Amber background, dark text, warning icon. 'Maintenance Required for [Drone]'.",
+      "checklist_cards": "Horizontal scroll list. Drone photo left (80x80px rounded), Content right: Name, Type (GENERIC ONLY: Multirotor, Fixed Wing, Heavy Lift, VTOL), Serial, Phase, Flight Count.",
+      "bottom_nav": "4 items: Home, History, Fleet Map, Profile. Plus floating action button (+) centered."
+    },
+    "add_checklist_flow": {
+      "step_1": "2x2 grid of buttons: Built-in, PDF, Photo, Voice.",
+      "step_2": "Form details: Name, type dropdown, phase selector, photo upload.",
+      "step_3": "Review list. Swipe left to delete, drag right handle to reorder, inline editable rows. Section headings bold.",
+      "step_4": "QR generated full screen, bright background for scannability."
+    },
+    "scanner_view": {
+      "layout": "Full screen camera viewfinder. White rectangular frame overlay. Text below: 'Align QR Code within frame'."
+    },
+    "operator_form": {
+      "layout": "Scrolling form. Inputs for Pilot, GCS, Flight ID. Read-only prepopulated Aircraft/Serial. Interactive map pin widget for location. Auto/manual toggle for Weather. Airspace check status. Mission description."
+    },
+    "checklist_execution": {
+      "header": "Sticky progress bar (teal). Live summary pills: [Passed: X] [Failed: Y] [Pending: Z].",
+      "list_items": "Card per item. Left: Item text. Right: Side-by-side icon buttons (Green tick outline / Red cross outline). Notes icon button. 3-state logic.",
+      "footer": "Primary button 'Complete' (if all pass) or 'Save with Issues ⚠' (if warnings)."
+    },
+    "post_checklist_summary": {
+      "layout": "Failed items panel (Red/Amber border). Damage report section (Yes/No toggles + severity slider). Camera widget for media gallery. Notes multiline input. Two signature canvas widgets (Pilot, Inspector). Primary 'Save Flight Record' CTA."
+    },
+    "history": {
+      "layout": "Two levels. Level 1: List of checklist groups (by Drone or Date). Level 2: Log drill-down. PDF generate icon in top right of detail view."
+    },
+    "profile": {
+      "layout": "Avatar + User Info. List menu: Plan, My Checklists, Settings (Units, Language, Biometric toggle), Logout (red text)."
+    }
+  },
+  "media_assets": {
+    "drone_multirotor": {
+      "url": "https://images.unsplash.com/photo-1758665156000-d05091c8c612?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzB8MHwxfHNlYXJjaHwzfHxxdWFkY29wdGVyJTIwZHJvbmUlMjBmbHlpbmclMjBjbGVhciUyMHNreXxlbnwwfHx8fDE3NzgxNzAxNjV8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Quadcopter drone flying in clear sky - use for multirotor default imagery."
+    },
+    "drone_pilot_outdoor": {
+      "url": "https://images.unsplash.com/photo-1775224021126-90ac3110f332?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzZ8MHwxfHNlYXJjaHwyfHxkcm9uZSUyMHBpbG90JTIwY29udHJvbGxlciUyMG91dGRvb3J8ZW58MHx8fHwxNzc4MTcwMTY1fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Drone pilot with controller - use for empty states or profile headers."
+    }
+  },
+  "testing": {
+    "rules": "All interactive and key informational elements MUST include a 'data-testid' (or 'testID' in React Native) attribute to facilitate robust automated testing. Use kebab-case and role-based naming."
+  },
+  "instructions_to_main_agent": {
+    "framework": "React Native with Expo.",
+    "styling": "Use standard React Native StyleSheet or NativeWind/Tailwind. Implement the explicit color tokens and 0.5px borders for the rugged, technical feel.",
+    "icons": "Use @expo/vector-icons. Never use filled variants. Stick to Feather or Ionicons outlines.",
+    "logo_implementation": "Since AI image generation failed due to quota, build the logo dynamically using Expo vector icons (e.g., a drone icon stacked with a checkmark) or standard RN View shapes to meet the minimal geometric requirement.",
+    "haptics": "Import *expo-haptics* and apply Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light) on all checklist button presses.",
+    "navigation": "Use React Navigation. Ensure safe area views are respected."
+  }
+}
