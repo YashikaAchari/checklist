@@ -2,8 +2,7 @@ import React, { useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Image,
   KeyboardAvoidingView, Platform,
-} from "react-native";
-import { useRouter } from "expo-router";
+} from "react-native";import { useRouter } from "expo-router";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
