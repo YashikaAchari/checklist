@@ -155,7 +155,9 @@ const styles = StyleSheet.create({
   seeAll: { fontSize: 13, color: palette.primary, fontWeight: "600" },
   empty: { padding: 32, alignItems: "center", borderRadius: 12, backgroundColor: t.surface, borderWidth: 0.5, borderColor: t.border, borderStyle: "dashed" },
   emptyText: { color: t.textSecondary },
-  clCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 12, backgroundColor: t.surface, borderWidth: 0.5, borderColor: t.border, marginBottom: 10 },
+  clCard: { flexDirection: "row", alignItems: "center", padding: 12, borderRadius: 12, backgroundColor: t.surface, borderWidth: 0.5, borderColor: t.border, marginBottom: 10 },
+  clCardMain: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12 },
+  qrIconBtn: { padding: 10, marginLeft: 8, borderRadius: 10, backgroundColor: palette.primary + "10", alignItems: "center", justifyContent: "center" },
   clImage: { width: 80, height: 80, borderRadius: 10, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   clImageImg: { width: "100%", height: "100%" },
   clName: { fontSize: 15, fontWeight: "700", color: t.text },
@@ -164,4 +166,6 @@ const styles = StyleSheet.create({
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   badgeText: { fontSize: 11, fontWeight: "600" },
   fab: { position: "absolute", right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: palette.primary, alignItems: "center", justifyContent: "center", elevation: 4, shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
+});
+er", justifyContent: "center", elevation: 4, shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
 });

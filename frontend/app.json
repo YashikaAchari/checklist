@@ -15,7 +15,8 @@
         "NSPhotoLibraryUsageDescription": "Attach photos to flight records",
         "NSLocationWhenInUseUsageDescription": "Tag flight location and fetch local weather",
         "NSMicrophoneUsageDescription": "Record video clips of flight issues"
-      }
+      },
+      "bundleIdentifier": "com.emergent.flightops.mjo30p"
     },
     "android": {
       "adaptiveIcon": {
@@ -30,7 +31,8 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_MEDIA_VIDEO"
-      ]
+      ],
+      "package": "com.emergent.flightops.mjo30p"
     },
     "web": {
       "bundler": "metro",

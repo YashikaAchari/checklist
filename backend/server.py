@@ -12,11 +12,12 @@ import jwt
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Literal
 
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, UploadFile, File
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr
 import httpx
+import re
 
 # ---------------------------------------------------------------------------
 # Setup
@@ -31,7 +32,7 @@ db = client[db_name]
 
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_DAYS = 7
+ACCESS_TOKEN_DAYS = 30
 
 app = FastAPI(title="FlyReady API")
 api = APIRouter(prefix="/api")
@@ -476,6 +477,61 @@ async def list_checklists(user: dict = Depends(get_current_user)):
     return out
 
 
+@api.get("/checklists/search")
+async def search_checklists(q: str, current_user: dict = Depends(get_current_user)):
+    docs = await db.checklists.find(
+        {"user_id": current_user["id"], "name": {"$regex": q, "$options": "i"}}
+    ).to_list(50)
+    out = []
+    for d in docs:
+        d = serialize(d)
+        d["flight_count"] = await db.flight_logs.count_documents({"checklist_id": d["id"]})
+        out.append(d)
+    return out
+
+
+@api.post("/checklists/parse-pdf")
+async def parse_pdf(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    import fitz
+    pdf_bytes = await file.read()
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    items = []
+    seen = set()
+    SKIP = {"go", "no-go", "yes", "no", "pass", "fail", "please print", "signature",
+            "date", "time", "am / pm", "street address", "city, state, zip", "am", "pm"}
+    for page in doc:
+        blocks = page.get_text("blocks")
+        blocks.sort(key=lambda b: (round(b[1] / 5) * 5, b[0]))
+        for block in blocks:
+            for line in block[4].split("\n"):
+                line = line.strip()
+                if not line or len(line) < 4:
+                    continue
+                low = line.lower().strip()
+                if re.search(r"get the digital|fulcrum|check us out|^http|^\d+$|mobile app|automate", low):
+                    continue
+                low_clean = re.sub(r"[☐☑□\[\]xX]", " ", low).strip()
+                if all(w.strip() in SKIP for w in low_clean.split() if w.strip()):
+                    continue
+                if re.fullmatch(r"[\s:/]*am\s*/\s*pm[\s:/]*", low):
+                    continue
+                is_item = (line.endswith("?") or bool(re.search(r"\(required", low, re.I))
+                           or bool(re.match(r"^\d{1,2}[\.\)]", line))
+                           or bool(re.match(r"^[-*•▶►]", line))
+                           or bool(re.match(r"^\[\s?\]|^☐|^☑|^□", line)))
+                if is_item:
+                    clean = re.sub(r"\([^)]*required[^)]*\)", "", line, flags=re.I)
+                    clean = clean.rstrip("?").strip()
+                    clean = re.sub(r"^[\d\.\)\-\*•▶►\[\]xX☐☑□]\s*", "", clean).strip(" .:-")
+                    if clean and clean.lower() not in seen and len(clean) > 3:
+                        seen.add(clean.lower())
+                        items.append({"label": clean, "required": bool(re.search(r"\(required", line, re.I))})
+    doc.close()
+    if not items:
+        raise HTTPException(422, "No checklist items found in this PDF. Try manual entry instead.")
+    return {"items": items, "count": len(items)}
+
+
 @api.post("/checklists")
 async def create_checklist(body: ChecklistIn, user: dict = Depends(get_current_user)):
     cid = str(uuid.uuid4())
@@ -651,6 +707,198 @@ async def stats(user: dict = Depends(get_current_user)):
 @api.get("/")
 async def root():
     return {"app": "FlyReady", "status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Search
+# ---------------------------------------------------------------------------
+@api.get("/stats/detailed")
+async def detailed_stats(current_user: dict = Depends(get_current_user)):
+    uid = current_user["id"]
+    total = await db.flight_logs.count_documents({"user_id": uid})
+    week_ago = now_utc() - timedelta(days=7)
+    week = await db.flight_logs.count_documents({"user_id": uid, "created_at": {"$gte": week_ago}})
+    total_cl = await db.checklists.count_documents({"user_id": uid})
+    pipeline = [
+        {"$match": {"user_id": uid}},
+        {"$group": {"_id": "$checklist_id", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 1},
+    ]
+    most_used = await db.flight_logs.aggregate(pipeline).to_list(1)
+    most_used_name = None
+    if most_used:
+        cl = await db.checklists.find_one({"id": most_used[0]["_id"]})
+        most_used_name = cl["name"] if cl else None
+    return {
+        "total_flights": total,
+        "flights_this_week": week,
+        "total_checklists": total_cl,
+        "most_used_checklist": most_used_name,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Maintenance overview
+# ---------------------------------------------------------------------------
+@api.get("/maintenance/overview")
+async def maintenance_overview(current_user: dict = Depends(get_current_user)):
+    checklists = await db.checklists.find({"user_id": current_user["id"]}).to_list(None)
+    result = []
+    for cl in checklists:
+        cl = serialize(cl)
+        logs = await db.flight_logs.count_documents({"checklist_id": cl["id"]})
+        maint = await db.maintenance_logs.find_one(
+            {"checklist_id": cl["id"], "user_id": current_user["id"]},
+            sort=[("created_at", -1)],
+        )
+        last_maint_at = None
+        flights_since_maint = logs
+        if maint:
+            last_maint_at = iso(maint["created_at"]) if isinstance(maint.get("created_at"), datetime) else maint.get("created_at")
+            flights_since_maint = await db.flight_logs.count_documents({
+                "checklist_id": cl["id"],
+                "created_at": {"$gt": maint["created_at"]},
+            })
+        result.append({
+            "checklist_id": cl["id"],
+            "name": cl["name"],
+            "drone_type": cl.get("drone_type"),
+            "drone_photo_url": cl.get("drone_photo_url"),
+            "flight_count": flights_since_maint,
+            "total_flight_count": logs,
+            "maintenance_due": flights_since_maint >= 50,
+            "due_soon": flights_since_maint >= 40 and flights_since_maint < 50,
+            "last_maintenance_at": last_maint_at,
+        })
+    return result
+
+
+@api.post("/maintenance/log")
+async def log_maintenance(body: dict, current_user: dict = Depends(get_current_user)):
+    checklist_id = body.get("checklist_id")
+    if not checklist_id:
+        raise HTTPException(400, "checklist_id required")
+    cl = await db.checklists.find_one({"id": checklist_id, "user_id": current_user["id"]})
+    if not cl:
+        raise HTTPException(404, "Checklist not found")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": current_user["id"],
+        "checklist_id": checklist_id,
+        "notes": body.get("notes", ""),
+        "created_at": now_utc(),
+    }
+    await db.maintenance_logs.insert_one(doc)
+    return serialize(dict(doc))
+
+
+# ---------------------------------------------------------------------------
+# Public scan endpoint (no auth) — used by /checklist/{id}/scan landing page
+# ---------------------------------------------------------------------------
+@api.get("/public/checklist/{checklist_id}")
+async def public_checklist(checklist_id: str):
+    doc = await db.checklists.find_one({"id": checklist_id})
+    if not doc:
+        raise HTTPException(404, "Checklist not found")
+    return {
+        "id": doc["id"],
+        "name": doc.get("name"),
+        "drone_type": doc.get("drone_type"),
+        "phase": doc.get("phase"),
+        "drone_photo_url": doc.get("drone_photo_url"),
+        "item_count": len(doc.get("items", [])),
+    }
+
+
+@api.post("/checklists/parse-image")
+async def parse_image(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    """
+    Extract checklist items from an image using the Claude API.
+    Works the same way as parse-pdf but for photos of paper checklists.
+    """
+    import base64
+    import json as json_lib
+
+    image_bytes = await file.read()
+    image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+
+    # Determine media type
+    content_type = file.content_type or "image/jpeg"
+    if content_type not in ("image/jpeg", "image/png", "image/gif", "image/webp"):
+        content_type = "image/jpeg"
+
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not anthropic_key:
+        raise HTTPException(500, "Image reading is not configured on this server.")
+
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": anthropic_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": "claude-opus-4-5",
+                    "max_tokens": 1024,
+                    "messages": [{
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": content_type,
+                                    "data": image_b64,
+                                }
+                            },
+                            {
+                                "type": "text",
+                                "text": (
+                                    "This is a photo of a drone checklist. "
+                                    "Extract every checklist item from the image. "
+                                    "Return ONLY a JSON array of strings, each string being one checklist item. "
+                                    "Remove checkbox symbols (☐ □ [ ]), leading numbers, bullet points. "
+                                    "Do not include section headings, page numbers, footers, or instructions. "
+                                    "Example: [\"Battery fully charged\", \"Propellers secured\", \"GPS signal acquired\"]. "
+                                    "Return ONLY the JSON array, nothing else, no markdown."
+                                )
+                            }
+                        ]
+                    }]
+                }
+            )
+    except Exception as e:
+        raise HTTPException(500, f"Could not read image: {str(e)}")
+
+    if response.status_code != 200:
+        raise HTTPException(500, "Image reading service unavailable. Try manual entry.")
+
+    result = response.json()
+    text = result.get("content", [{}])[0].get("text", "").strip()
+
+    # Strip any markdown fences Claude might add
+    text = text.strip("` \n")
+    if text.startswith("json"):
+        text = text[4:].strip()
+
+    try:
+        extracted = json_lib.loads(text)
+        if not isinstance(extracted, list):
+            raise ValueError("Not a list")
+        items = [{"label": str(item).strip(), "required": False}
+                 for item in extracted if str(item).strip()]
+    except Exception:
+        raise HTTPException(422, "Could not extract checklist items from this image. Try manual entry.")
+
+    if not items:
+        raise HTTPException(422, "No checklist items found in this image. Try manual entry.")
+
+    return {"items": items, "count": len(items)}
+
 
 
 app.include_router(api)

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
-import { Ionicons, Feather } from "@expo/vector-icons";
+import { Ionicons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { palette, lightTheme as t, droneTypeLabel } from "../../src/theme";
 import { api } from "../../src/api";
@@ -33,6 +33,13 @@ export default function HistoryGroup() {
           <Text style={styles.h1} numberOfLines={1}>{cl.name}</Text>
           <Text style={styles.sub}>{droneTypeLabel(cl.drone_type)} · created {(cl.created_at || "").slice(0, 10)}</Text>
         </View>
+        <TouchableOpacity
+          testID="history-view-qr-btn"
+          onPress={() => router.push(`/checklist/${cl.id}/qr`)}
+          style={{ padding: 8, marginLeft: 8, borderRadius: 8, backgroundColor: palette.primary + "10" }}
+        >
+          <MaterialCommunityIcons name="qrcode" size={22} color={palette.primary} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16 }}>
