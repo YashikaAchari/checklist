@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,6 +14,7 @@ export default function FlightRecord() {
   const [log, setLog] = useState<any>(null);
   const [cl, setCl] = useState<any>(null);
   const [busy, setBusy] = useState(false);
+  const [modal, setModal] = useState<{ title: string; msg: string } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -127,9 +128,9 @@ ${photosHTML ? `<div class="section"><h3>Photos</h3>${photosHTML}</div>` : ""}
       const { uri } = await Print.printToFileAsync({ html, base64: false });
       const can = await Sharing.isAvailableAsync();
       if (can) await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: `Flight #${log.serial_number} — FlyReady` });
-      else Alert.alert("PDF saved", uri);
+      else setModal({ title: "PDF saved", msg: uri });
     } catch (e: any) {
-      Alert.alert("Error", e.message || "Could not generate PDF");
+      setModal({ title: "Error", msg: e.message || "Could not generate PDF" });
     } finally {
       setBusy(false);
     }
@@ -137,6 +138,17 @@ ${photosHTML ? `<div class="section"><h3>Photos</h3>${photosHTML}</div>` : ""}
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]} testID="flight-record-screen">
+      <Modal visible={!!modal} transparent animationType="fade">
+        <View style={styles.overlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>{modal?.title}</Text>
+            <Text style={styles.modalMsg}>{modal?.msg}</Text>
+            <TouchableOpacity style={styles.modalBtn} onPress={() => setModal(null)}>
+              <Text style={styles.modalBtnText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => router.back()}><Ionicons name="chevron-back" size={28} color={t.text} /></TouchableOpacity>
         <View style={{ flex: 1, marginLeft: 8 }}>
@@ -257,4 +269,10 @@ const styles = StyleSheet.create({
   thumb: { width: 80, height: 80, borderRadius: 8, backgroundColor: t.border },
   pdfBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 24, height: 52, borderRadius: 12, backgroundColor: palette.primary },
   pdfBtnText: { color: palette.white, fontWeight: "700", fontSize: 15 },
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center" },
+  modalBox: { backgroundColor: t.surface, borderRadius: 16, padding: 24, width: 300 },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: t.text, marginBottom: 8 },
+  modalMsg: { fontSize: 14, color: t.textSecondary, lineHeight: 22, marginBottom: 20 },
+  modalBtn: { height: 44, borderRadius: 10, backgroundColor: palette.primary, alignItems: "center", justifyContent: "center" },
+  modalBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
 });

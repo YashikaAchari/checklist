@@ -1,0 +1,44 @@
+{
+  "summary": "Backend-only testing of FlyReady new endpoints. Created pytest suite /app/backend/tests/test_flyready_new_endpoints.py covering all 8 requested behaviors. 18/18 tests PASSED against local backend at http://localhost:8001.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "N/A", "issue": "Pre-existing test file /app/backend/tests/test_flyready_api.py uses OUTDATED credentials (admin@flyready.app / pilot@flyready.app) which no longer match the seeded users in backend/.env (yashikaachari7135@gmail.com / pilot@flyready.com). Old file will fail if re-run. Recommend deleting or updating it."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_flyready_new_endpoints.py",
+    "/app/test_reports/pytest/new_endpoints.xml"
+  ],
+  "action_items": [
+    "Delete or update /app/backend/tests/test_flyready_api.py (outdated credentials from prior iteration).",
+    "Optional: set OPENWEATHER_API_KEY if weather endpoint should be enabled (currently returns 503 as intended)."
+  ],
+  "critical_code_review_comments": [
+    "server.py is ~888 lines — consider splitting into routers (auth, checklists, flight_logs, maintenance, public) for maintainability.",
+    "POST /api/maintenance/log accepts raw dict instead of a Pydantic model — no input validation beyond manual checklist_id check.",
+    "PUT /api/flight_logs/{flight_id} accepts raw dict body (no Pydantic validation).",
+    "seed_user overwrites password_hash if env password no longer matches — good for dev, but could clobber real user password if ADMIN_EMAIL collides with a real user.",
+    "get_checklist route is declared AFTER /checklists/search — correct ordering (verified via test_search_route_not_shadowed_by_id_route)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_flyready_new_endpoints.py (new)"
+  ],
+  "success_rate": {"backend": "100% (18/18)", "frontend": "N/A (skipped per request)"},
+  "test_credentials": "Admin: yashikaachari7135@gmail.com / Flyready@Admin#2026! ; Pilot: pilot@flyready.com / Pilot@1234 (from /app/backend/.env, seeded on startup)",
+  "seed_data_creation": "Tests create TEST_-prefixed checklists and flight_logs and delete them at end. maintenance_logs are not cleaned up (checklist deletion cascades effectively since queries filter by checklist_id).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend URL used for testing = http://localhost:8001 (frontend/.env EXPO_PUBLIC_BACKEND_URL points to a remote render deployment that is NOT the local backend). Override with BACKEND_TEST_URL env var if needed. reportlab was pip-installed to generate PDFs for the parse-pdf test. All new endpoints verified: parse-pdf (auth + items + 422 for empty), search (auth + case-insensitive + not shadowed by /{id}), stats/detailed (shape), maintenance overview+log (flight_count reset to 0 after logging maintenance, then increments correctly with new flights), public/checklist/{id} (no-auth + 404), ACCESS_TOKEN_DAYS=30 verified by decoding JWT exp claim.",
+  "verified_behaviors": [
+    "POST /api/checklists/parse-pdf returns {items, count} with {label, required}; 422 for empty PDF; 401 without auth",
+    "GET /api/checklists/search?q= case-insensitive; requires auth; not shadowed by /checklists/{id}",
+    "GET /api/stats/detailed returns total_flights, flights_this_week, total_checklists, most_used_checklist",
+    "GET /api/maintenance/overview returns checklist_id, name, drone_type, flight_count, maintenance_due, due_soon, last_maintenance_at",
+    "POST /api/maintenance/log resets flight_count in subsequent overview to 0; only flights AFTER log are counted",
+    "GET /api/public/checklist/{id} works without auth; 404 for missing",
+    "JWT exp ~30 days from now (ACCESS_TOKEN_DAYS=30)",
+    "Login accepts seeded admin credentials"
+  ]
+}

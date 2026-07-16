@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Platform } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Platform, TextInput } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,8 +15,9 @@ export default function Execute() {
   const startedAt = useRef<Date | null>(null);
   const interval = useRef<any>(null);
   const [modal, setModal] = useState<{ title: string; msg: string; onConfirm?: () => void } | null>(null);
+  const [noteOpenFor, setNoteOpenFor] = useState<string | null>(null);
 
-  useEffect(() => { if (!cl) router.replace("/(tabs)/home"); }, []);
+  useEffect(() => { if (!cl) router.replace("/(tabs)/home"); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   useEffect(() => {
     if (running) {
@@ -54,6 +55,11 @@ export default function Execute() {
     haptic();
     const cur = draft.executions[id]?.state || "empty";
     draft.setExecution(id, cur === state ? "empty" : state);
+  };
+
+  const setNote = (id: string, notes: string) => {
+    const cur = draft.executions[id];
+    draft.setExecution(id, (cur?.state as any) || "empty", notes);
   };
 
   const startOrStop = () => {
@@ -101,7 +107,6 @@ export default function Execute() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]} testID="execute-screen">
-      {/* Modal - works on web and mobile */}
       <Modal visible={!!modal} transparent animationType="fade">
         <View style={styles.overlay}>
           <View style={styles.modalBox}>
@@ -132,7 +137,10 @@ export default function Execute() {
         </View>
       </View>
 
-      <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${pct}%` as any }]} /></View>
+      <View style={styles.progressWrap}>
+        <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${pct}%` as any }]} /></View>
+        <Text testID="progress-percent" style={styles.pctText}>{pct}% complete</Text>
+      </View>
 
       <View style={styles.statsBar}>
         <TouchableOpacity testID="execute-timer-btn" style={[styles.timerBtn, { backgroundColor: running ? palette.danger : palette.secondary }]} onPress={startOrStop}>
@@ -147,24 +155,57 @@ export default function Execute() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 140 }}>
         {groups.map((g, gi) => (
           <View key={gi}>
             {g.heading && <Text style={styles.section}>{g.heading}</Text>}
             {g.items.map((it: any) => {
               const state = draft.executions[it.id]?.state || "empty";
+              const notes = draft.executions[it.id]?.notes || "";
+              const noteOpen = noteOpenFor === it.id;
               return (
-                <View key={it.id} testID={`exec-item-${it.id}`} style={[styles.itemCard, state === "fail" && { borderColor: palette.danger }]}>
+                <View key={it.id} testID={`exec-item-${it.id}`} style={[styles.itemCard, state === "fail" && { borderColor: palette.danger, borderWidth: 1 }]}>
                   <View style={styles.itemRow}>
-                    <TouchableOpacity testID={`exec-pass-${it.id}`} style={[styles.iconBtn, state === "pass" ? { backgroundColor: palette.success, borderColor: palette.success } : { backgroundColor: t.surface, borderColor: t.border }]} onPress={() => toggle(it.id, "pass")}>
-                      <Feather name="check" size={20} color={state === "pass" ? palette.white : t.textSecondary} />
+                    <TouchableOpacity
+                      testID={`exec-pass-${it.id}`}
+                      style={[styles.iconBtn, state === "pass" ? { backgroundColor: palette.success, borderColor: palette.success } : { backgroundColor: t.surface, borderColor: t.border }]}
+                      onPress={() => toggle(it.id, "pass")}
+                    >
+                      <Feather name="check" size={22} color={state === "pass" ? palette.white : t.textSecondary} />
                     </TouchableOpacity>
-                    <TouchableOpacity testID={`exec-fail-${it.id}`} style={[styles.iconBtn, state === "fail" ? { backgroundColor: palette.danger, borderColor: palette.danger } : { backgroundColor: t.surface, borderColor: t.border }]} onPress={() => toggle(it.id, "fail")}>
-                      <Feather name="x" size={20} color={state === "fail" ? palette.white : t.textSecondary} />
+                    <TouchableOpacity
+                      testID={`exec-fail-${it.id}`}
+                      style={[styles.iconBtn, state === "fail" ? { backgroundColor: palette.danger, borderColor: palette.danger } : { backgroundColor: t.surface, borderColor: t.border }]}
+                      onPress={() => toggle(it.id, "fail")}
+                    >
+                      <Feather name="x" size={22} color={state === "fail" ? palette.white : t.textSecondary} />
                     </TouchableOpacity>
-                    <Text style={[styles.itemLabel, state === "pass" && { color: t.textSecondary, textDecorationLine: "line-through" }, state === "fail" && { color: palette.danger }]}>{it.label}</Text>
+                    <Text style={[styles.itemLabel, state === "pass" && { color: t.textSecondary, textDecorationLine: "line-through" }, state === "fail" && { color: palette.danger }]}>
+                      {it.label}
+                    </Text>
+                    <TouchableOpacity
+                      testID={`exec-note-${it.id}`}
+                      style={[styles.noteBtn, (noteOpen || notes) && { backgroundColor: palette.primary + "20" }]}
+                      onPress={() => setNoteOpenFor(noteOpen ? null : it.id)}
+                    >
+                      <Feather name="edit-2" size={16} color={notes ? palette.primary : t.textSecondary} />
+                    </TouchableOpacity>
                     {state === "fail" && <View style={styles.issueBadge}><Text style={{ color: palette.white, fontSize: 10, fontWeight: "700" }}>ISSUE</Text></View>}
                   </View>
+                  {noteOpen && (
+                    <TextInput
+                      testID={`exec-note-input-${it.id}`}
+                      style={styles.noteInput}
+                      value={notes}
+                      onChangeText={(v) => setNote(it.id, v)}
+                      placeholder="Add a note about this item…"
+                      placeholderTextColor={t.textSecondary}
+                      multiline
+                    />
+                  )}
+                  {!noteOpen && notes ? (
+                    <Text style={styles.noteText}>📝 {notes}</Text>
+                  ) : null}
                 </View>
               );
             })}
@@ -174,9 +215,19 @@ export default function Execute() {
 
       <View style={styles.bottomBar}>
         {hasFails && <Text style={styles.warnText}>{counts.f} item(s) flagged as issues</Text>}
-        <TouchableOpacity testID="execute-complete-btn" disabled={!allDone} style={[styles.cta, !allDone && { opacity: 0.5 }, hasFails && { backgroundColor: palette.warning }]} onPress={complete}>
+        <TouchableOpacity
+          testID="execute-complete-btn"
+          disabled={!allDone}
+          style={[
+            styles.cta,
+            !allDone && { opacity: 0.5 },
+            allDone && !hasFails && { backgroundColor: palette.success },
+            hasFails && { backgroundColor: palette.warning },
+          ]}
+          onPress={complete}
+        >
           <Text style={styles.ctaText}>{hasFails ? "Save with issues" : "Complete checklist"}</Text>
-          {hasFails ? <MaterialCommunityIcons name="alert" size={20} color={palette.white} /> : <Feather name="check" size={20} color={palette.white} />}
+          {hasFails ? <MaterialCommunityIcons name="alert" size={20} color={palette.white} /> : <Feather name="check" size={22} color={palette.white} />}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -192,20 +243,25 @@ const styles = StyleSheet.create({
   topBar: { flexDirection: "row", alignItems: "center", padding: 16, borderBottomWidth: 0.5, borderBottomColor: t.border, backgroundColor: t.surface },
   h1: { fontSize: 17, fontWeight: "700", color: t.text },
   sub: { fontSize: 12, color: t.textSecondary, marginTop: 2 },
-  progressTrack: { height: 4, backgroundColor: t.border },
-  progressFill: { height: 4, backgroundColor: palette.secondary },
+  progressWrap: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: t.surface, borderBottomWidth: 0.5, borderBottomColor: t.border, flexDirection: "row", alignItems: "center", gap: 12 },
+  progressTrack: { flex: 1, height: 6, backgroundColor: t.border, borderRadius: 3, overflow: "hidden" },
+  progressFill: { height: 6, backgroundColor: palette.secondary, borderRadius: 3 },
+  pctText: { fontSize: 12, fontWeight: "700", color: t.text, minWidth: 90, textAlign: "right" },
   statsBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 12, paddingHorizontal: 16, backgroundColor: t.surface, borderBottomWidth: 0.5, borderBottomColor: t.border, gap: 8 },
   timerBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
   timer: { fontFamily: "monospace", fontSize: 14, color: t.text, fontWeight: "700" },
-  section: { fontSize: 13, fontWeight: "700", color: palette.primary, marginTop: 12, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 },
+  section: { fontSize: 12, fontWeight: "700", color: t.textSecondary, marginTop: 14, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 },
   itemCard: { padding: 12, borderRadius: 10, backgroundColor: t.surface, borderWidth: 0.5, borderColor: t.border, marginBottom: 8 },
   itemRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  iconBtn: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center", borderWidth: 1.5 },
+  iconBtn: { width: 44, height: 44, borderRadius: 10, alignItems: "center", justifyContent: "center", borderWidth: 1.5 },
   itemLabel: { flex: 1, fontSize: 14, color: t.text, lineHeight: 20 },
+  noteBtn: { width: 36, height: 36, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: t.surface, borderWidth: 0.5, borderColor: t.border },
+  noteInput: { marginTop: 10, minHeight: 60, backgroundColor: t.background, borderRadius: 8, borderWidth: 0.5, borderColor: t.border, padding: 10, fontSize: 13, color: t.text, textAlignVertical: "top" },
+  noteText: { marginTop: 8, fontSize: 12, color: t.textSecondary, fontStyle: "italic" },
   issueBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: palette.danger },
   bottomBar: { padding: 16, borderTopWidth: 0.5, borderTopColor: t.border, backgroundColor: t.surface },
   warnText: { color: palette.warning, fontWeight: "600", textAlign: "center", marginBottom: 8, fontSize: 13 },
-  cta: { backgroundColor: palette.primary, height: 52, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  cta: { backgroundColor: palette.primary, height: 54, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   ctaText: { color: palette.white, fontSize: 16, fontWeight: "700" },
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center" },
   modalBox: { backgroundColor: t.surface, borderRadius: 16, padding: 24, width: 300, shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 20 },

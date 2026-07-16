@@ -1,9 +1,10 @@
 import { Tabs } from "expo-router";
-import { Ionicons, Feather } from "@expo/vector-icons";
-import { palette, useTheme } from "../../src/theme";
+import { Ionicons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { palette } from "../../src/theme";
+import { useAppTheme } from "../../src/themeContext";
 
 export default function TabsLayout() {
-  const t = useTheme();
+  const { theme: t } = useAppTheme();
   return (
     <Tabs
       screenOptions={{
@@ -36,9 +37,16 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="maintenance"
+        options={{
+          title: "Maintenance",
+          tabBarIcon: ({ color, size }) => <Feather name="tool" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="fleet-map"
         options={{
-          title: "Fleet map",
+          title: "Fleet",
           tabBarIcon: ({ color, size }) => <Feather name="map" size={size} color={color} />,
         }}
       />

@@ -1,18 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Image, KeyboardAvoidingView, Platform, Modal } from "react-native";
 import { useRouter } from "expo-router";
-import { Ionicons, Feather } from "@expo/vector-icons";
+import { Ionicons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { palette, lightTheme as t } from "../../src/theme";
 import { useFlightDraft } from "../../src/flightDraft";
 import { api, formatApiError } from "../../src/api";
 import { PhotoSourceSheet } from "../../src/PhotoSourceSheet";
 
-const SEVERITIES = [
-  { id: "none", label: "None", color: t.textSecondary },
-  { id: "minor", label: "Minor", color: palette.warning },
-  { id: "moderate", label: "Moderate", color: "#E97A1A" },
-  { id: "critical", label: "Critical", color: palette.danger },
+const SEVERITIES: { id: "none" | "minor" | "moderate" | "critical"; label: string; color: string; icon: any; desc: string }[] = [
+  { id: "none", label: "None", color: palette.success, icon: "check-circle", desc: "No damage" },
+  { id: "minor", label: "Minor", color: palette.warning, icon: "alert-circle", desc: "Small scratches / cosmetic" },
+  { id: "moderate", label: "Moderate", color: "#E97A1A", icon: "alert-triangle", desc: "Needs attention soon" },
+  { id: "critical", label: "Critical", color: palette.danger, icon: "alert-octagon", desc: "Do not fly until fixed" },
 ];
 
 export default function Summary() {
@@ -25,7 +25,7 @@ export default function Summary() {
   const [sigModal, setSigModal] = useState<"pilot" | "gcs" | null>(null);
   const [sigText, setSigText] = useState("");
 
-  useEffect(() => { if (!cl) router.replace("/(tabs)/home"); }, [cl]);
+  useEffect(() => { if (!cl) router.replace("/(tabs)/home"); }, [cl, router]);
   if (!cl) return null;
 
   const failedItems = (cl.items || []).filter((it: any) => draft.executions[it.id]?.state === "fail");
@@ -91,38 +91,38 @@ export default function Summary() {
         media: draft.media,
       };
       const { data } = await api.post("/flight_logs", payload);
-      const msg = `Flight saved: #${String(data.serial_number).padStart(3, "0")} (${data.flight_id})`;
-      setModal({ title: "Flight saved! ✓", msg });
+      // Navigate to dedicated success screen
+      router.replace({
+        pathname: "/flight/success",
+        params: {
+          flightId: data.flight_id || "",
+          serial: String(data.serial_number || ""),
+          pass: String(passedCount),
+          fail: String(failedItems.length),
+          id: data.id,
+        },
+      });
     } catch (e: any) {
-      setModal({ title: "Error", msg: formatApiError(e) });
+      setModal({ title: "Error saving flight", msg: formatApiError(e) });
     } finally {
       setBusy(false);
     }
   };
 
-  const goHome = () => {
-    setModal(null);
-    router.replace("/(tabs)/home");
-    setTimeout(() => draft.reset(), 50);
-  };
-
   return (
     <SafeAreaView style={styles.container} edges={["top"]} testID="summary-screen">
-
-      {/* Info/success modal */}
       <Modal visible={!!modal} transparent animationType="fade">
         <View style={styles.overlay}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>{modal?.title}</Text>
             <Text style={styles.modalMsg}>{modal?.msg}</Text>
-            <TouchableOpacity style={styles.modalBtn} onPress={modal?.title?.includes("saved") ? goHome : () => setModal(null)}>
+            <TouchableOpacity style={styles.modalBtn} onPress={() => setModal(null)}>
               <Text style={styles.modalBtnText}>OK</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* Signature modal */}
       <Modal visible={!!sigModal} transparent animationType="fade">
         <View style={styles.overlay}>
           <View style={styles.modalBox}>
@@ -176,15 +176,38 @@ export default function Summary() {
           )}
 
           <Text style={styles.sectionTitle}>Damage report</Text>
-          <View style={styles.chipsRow}>
-            {SEVERITIES.map((s) => (
-              <TouchableOpacity key={s.id} testID={`sum-severity-${s.id}`} style={[styles.chip, draft.damage_severity === s.id && { backgroundColor: s.color, borderColor: s.color }]} onPress={() => draft.patch({ damage_severity: s.id as any })}>
-                <Text style={[styles.chipText, draft.damage_severity === s.id && { color: palette.white }]}>{s.label}</Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.severityGrid}>
+            {SEVERITIES.map((s) => {
+              const selected = draft.damage_severity === s.id;
+              return (
+                <TouchableOpacity
+                  key={s.id}
+                  testID={`sum-severity-${s.id}`}
+                  style={[
+                    styles.severityCard,
+                    { borderColor: selected ? s.color : t.border, backgroundColor: selected ? s.color + "18" : t.surface },
+                  ]}
+                  onPress={() => draft.patch({ damage_severity: s.id })}
+                >
+                  <View style={[styles.severityIcon, { backgroundColor: s.color }]}>
+                    <Feather name={s.icon} size={20} color={palette.white} />
+                  </View>
+                  <Text style={[styles.severityLabel, { color: selected ? s.color : t.text }]}>{s.label}</Text>
+                  <Text style={styles.severityDesc}>{s.desc}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
           {draft.damage_severity !== "none" && (
-            <TextInput testID="sum-damage-desc" style={[styles.input, { minHeight: 70, marginTop: 10, textAlignVertical: "top" }]} multiline placeholder="Describe damage observed…" placeholderTextColor={t.textSecondary} value={draft.damage_report_description} onChangeText={(v) => draft.patch({ damage_report_description: v })} />
+            <TextInput
+              testID="sum-damage-desc"
+              style={[styles.input, { minHeight: 70, marginTop: 10, textAlignVertical: "top" }]}
+              multiline
+              placeholder="Describe damage observed…"
+              placeholderTextColor={t.textSecondary}
+              value={draft.damage_report_description}
+              onChangeText={(v) => draft.patch({ damage_report_description: v })}
+            />
           )}
 
           <Text style={styles.sectionTitle}>Photos</Text>
@@ -201,7 +224,15 @@ export default function Summary() {
           </View>
 
           <Text style={styles.sectionTitle}>Remarks</Text>
-          <TextInput testID="sum-remarks" style={[styles.input, { minHeight: 80, textAlignVertical: "top" }]} multiline placeholder="Additional notes about this flight…" placeholderTextColor={t.textSecondary} value={draft.remarks} onChangeText={(v) => draft.patch({ remarks: v })} />
+          <TextInput
+            testID="sum-remarks"
+            style={[styles.input, { minHeight: 80, textAlignVertical: "top" }]}
+            multiline
+            placeholder="Additional notes about this flight…"
+            placeholderTextColor={t.textSecondary}
+            value={draft.remarks}
+            onChangeText={(v) => draft.patch({ remarks: v })}
+          />
 
           <Text style={styles.sectionTitle}>Signatures</Text>
           <SignatureRow label="Pilot in Command" sig={draft.pilot_signature_url} onTap={() => captureSig("pilot")} />
@@ -258,9 +289,11 @@ const styles = StyleSheet.create({
   failedTitle: { color: palette.danger, fontWeight: "700", fontSize: 14, marginBottom: 8 },
   failedItem: { color: palette.danger, fontSize: 13, marginVertical: 2 },
   sectionTitle: { fontSize: 16, fontWeight: "700", color: t.text, marginTop: 24, marginBottom: 8 },
-  chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999, backgroundColor: t.surface, borderWidth: 0.5, borderColor: t.border },
-  chipText: { fontSize: 13, color: t.text, fontWeight: "600" },
+  severityGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  severityCard: { width: "48%", padding: 14, borderRadius: 12, borderWidth: 1.5 },
+  severityIcon: { width: 36, height: 36, borderRadius: 8, alignItems: "center", justifyContent: "center", marginBottom: 8 },
+  severityLabel: { fontSize: 15, fontWeight: "700" },
+  severityDesc: { fontSize: 11, color: t.textSecondary, marginTop: 2 },
   input: { minHeight: 44, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, backgroundColor: t.surface, borderRadius: 8, borderWidth: 0.5, borderColor: t.border, color: t.text },
   mediaGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   thumb: { width: 80, height: 80, borderRadius: 8, overflow: "hidden", backgroundColor: t.border },

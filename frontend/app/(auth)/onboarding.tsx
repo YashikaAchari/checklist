@@ -2,8 +2,11 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { palette, lightTheme as t } from "../../src/theme";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+const ONBOARDING_KEY = "flyready_onboarding_done";
 
 const SLIDES = [
   {
@@ -28,16 +31,21 @@ export default function Onboarding() {
   const [i, setI] = useState(0);
   const slide = SLIDES[i];
 
+  const done = async () => {
+    try { await AsyncStorage.setItem(ONBOARDING_KEY, "true"); } catch {}
+    router.replace("/(auth)/login");
+  };
+
   const next = () => {
     if (i < SLIDES.length - 1) setI(i + 1);
-    else router.replace("/(auth)/login");
+    else done();
   };
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <View style={styles.topBar}>
         <View />
-        <TouchableOpacity testID="onboarding-skip" onPress={() => router.replace("/(auth)/login")}>
+        <TouchableOpacity testID="onboarding-skip" onPress={done}>
           <Text style={styles.skip}>Skip</Text>
         </TouchableOpacity>
       </View>

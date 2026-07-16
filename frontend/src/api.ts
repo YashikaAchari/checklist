@@ -36,6 +36,15 @@ api.interceptors.request.use(async (config) => {
 });
 
 export const formatApiError = (e: any): string => {
+  // Network error (no response)
+  if (!e?.response) {
+    if (e?.message === "Network Error" || e?.code === "ERR_NETWORK" || e?.code === "ECONNABORTED") {
+      return "Could not connect. Check your internet and try again.";
+    }
+  }
+  const status = e?.response?.status;
+  if (status === 401) return "Session expired. Please log in again.";
+  if (status === 500) return "Server error. Please try again in a moment.";
   const detail = e?.response?.data?.detail;
   if (!detail) return e?.message || "Something went wrong";
   if (typeof detail === "string") return detail;

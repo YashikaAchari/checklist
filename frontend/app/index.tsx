@@ -1,9 +1,12 @@
 import { useEffect } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuthStore } from "../src/auth";
 import { palette } from "../src/theme";
 import { FlyReadyLogo } from "../src/Logo";
+
+const ONBOARDING_KEY = "flyready_onboarding_done";
 
 export default function Index() {
   const router = useRouter();
@@ -11,11 +14,25 @@ export default function Index() {
 
   useEffect(() => {
     if (loading) return;
-    const t = setTimeout(() => {
-      if (user) router.replace("/(tabs)/home");
-      else router.replace("/(auth)/onboarding");
-    }, 1500);
-    return () => clearTimeout(t);
+    (async () => {
+      let onboardingDone = false;
+      try {
+        const v = await AsyncStorage.getItem(ONBOARDING_KEY);
+        onboardingDone = v === "true";
+      } catch {}
+
+      const nav = () => {
+        if (user) {
+          router.replace("/(tabs)/home");
+        } else if (onboardingDone) {
+          router.replace("/(auth)/login");
+        } else {
+          router.replace("/(auth)/onboarding");
+        }
+      };
+      // Small splash pause
+      setTimeout(nav, 800);
+    })();
   }, [user, loading, router]);
 
   return (

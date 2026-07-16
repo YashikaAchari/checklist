@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert } from "react-native";
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, Feather } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { palette, lightTheme as t } from "../../src/theme";
 import { FlyReadyLogo } from "../../src/Logo";
@@ -11,13 +11,18 @@ import { formatApiError } from "../../src/api";
 export default function Login() {
   const router = useRouter();
   const login = useAuthStore((s) => s.login);
-  const [email, setEmail] = useState("pilot@flyready.app");
-  const [password, setPassword] = useState("Pilot@123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const submit = async () => {
     setErr(null);
+    if (!email.trim() || !password) {
+      setErr("Please enter both email and password.");
+      return;
+    }
     setBusy(true);
     try {
       await login(email.trim(), password);
@@ -53,23 +58,35 @@ export default function Login() {
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
+            autoComplete="email"
             keyboardType="email-address"
             placeholder="you@example.com"
             placeholderTextColor={t.textSecondary}
           />
 
           <Text style={styles.label}>Password</Text>
-          <TextInput
-            testID="login-password-input"
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            placeholder="••••••••"
-            placeholderTextColor={t.textSecondary}
-          />
+          <View style={styles.pwWrap}>
+            <TextInput
+              testID="login-password-input"
+              style={styles.pwInput}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoComplete="password"
+              placeholder="••••••••"
+              placeholderTextColor={t.textSecondary}
+            />
+            <TouchableOpacity
+              testID="login-password-toggle"
+              onPress={() => setShowPassword((v) => !v)}
+              style={styles.pwEye}
+              accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+            >
+              <Feather name={showPassword ? "eye-off" : "eye"} size={20} color={t.textSecondary} />
+            </TouchableOpacity>
+          </View>
 
-          {err && <Text testID="login-error" style={styles.err}>{err}</Text>}
+          {err ? <Text testID="login-error" style={styles.err}>{err}</Text> : null}
 
           <TouchableOpacity
             testID="login-submit-btn"
@@ -103,6 +120,9 @@ const styles = StyleSheet.create({
   sub: { fontSize: 14, color: t.textSecondary, marginTop: 4 },
   label: { fontSize: 12, color: t.textSecondary, marginTop: 16, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: "600" },
   input: { height: 48, backgroundColor: t.surface, borderRadius: 8, borderWidth: 0.5, borderColor: t.border, paddingHorizontal: 16, fontSize: 16, color: t.text },
+  pwWrap: { flexDirection: "row", alignItems: "center", backgroundColor: t.surface, borderRadius: 8, borderWidth: 0.5, borderColor: t.border },
+  pwInput: { flex: 1, height: 48, paddingHorizontal: 16, fontSize: 16, color: t.text },
+  pwEye: { width: 44, height: 48, alignItems: "center", justifyContent: "center" },
   cta: { marginTop: 24, backgroundColor: palette.primary, height: 52, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   ctaText: { color: palette.white, fontSize: 16, fontWeight: "600" },
   err: { color: palette.danger, marginTop: 12, fontSize: 13 },
