@@ -1,55 +1,59 @@
-# FlyReady — PRD (v1 MVP)
+# FlyReady — Product Requirements
 
-## Vision
-Production-ready cross-platform Expo mobile app for drone operators that manages preflight, inflight and postflight checklists with QR codes, GPS/weather, three-state checks, flight logging, signatures, photos, and PDF reporting.
+## Overview
+FlyReady is a **free & open-source** preflight / inflight / postflight checklist app for drone pilots.
+- Backend: FastAPI + MongoDB (deployed on Render at https://flyready-backend.onrender.com)
+- Frontend: React Native + Expo (deployed on Vercel at https://flyready-iota.vercel.app)
+- Repo: https://github.com/YashikaAchari/checklist
 
-## Tagline
-Preflight · Inflight · Postflight
+## User Personas
+1. **Solo drone pilot** — needs quick preflight, safety-first checklists, and history for compliance.
+2. **Test pilot / R&D** — logs every flight for the same airframe, tracks changes since last flight, damage reports.
+3. **Fleet operator** — multiple drones, needs QR-based check-in and maintenance tracking.
 
-## v1 MVP scope (delivered)
-- **Auth** — JWT email/password (register, login, /me) with Bearer tokens (`expo-secure-store` on native, `AsyncStorage` fallback on web)
-- **Splash + onboarding** (3 slides) → login/register
-- **Home** — top bar with FlyReady wordmark + connectivity dot + avatar; teal QR scan card; stats row; "Your checklists" cards (drone photo/icon left, name + type + phase + flight-count right); floating + button; bottom nav (Home / History / Fleet map / Profile)
-- **Add new checklist flow** (4 steps) — choose method (Built-in template / PDF / Photo / Voice / Manual) → details (name, drone type chips, phase chips, drone photo) → review/edit items (inline edit, reorder, add, delete) → QR generated full screen with share button
-- **QR scanner** — full-screen viewfinder via `expo-camera`, manual-ID fallback, deep link `flyready://checklist/{id}`
-- **Operator details form** — pilot, GCS, flight ID auto-gen, aircraft, serial, battery, location with map pin (`react-native-maps` on native + web fallback), GPS auto-fill, weather (OpenWeatherMap auto-fetch + manual fallback), airspace check, mission objective, payload, AUW
-- **Checklist execution** — sticky teal progress bar, live pass/fail/pending pills, side-by-side green tick + red cross 3-state buttons, haptic feedback, section grouping, flight start/stop timer, "Complete" or "Save with Issues ⚠" with confirmation
-- **Post-flight summary** — failed items panel, damage report (severity chips + description), photos gallery (camera/gallery), remarks, two signature captures (pilot + GCS), Save flight record
-- **History** — Level 1: checklist groups with flight count badges; Level 2: date-wise flight log list; Level 3: full flight record with all data + photos + signatures; PDF generate & native share via `expo-print` + `expo-sharing`
-- **Profile** — user info, plan badge, role badge, log out, settings entry points
+## Core (static) requirements
+- Everything is FREE — no subscriptions, paywalls, or payment logic anywhere.
+- Drone types are generic: Multirotor, Fixed Wing, Heavy Lift, VTOL — no brand names.
+- Works on web, iOS, Android — no native-only imports at top level.
+- No `Alert.alert` — always use Modals / inline error text (works on web).
+- No hardcoded API keys in frontend — use env vars only.
 
-## Tech stack (delivered)
-- **Frontend**: Expo SDK 54, expo-router, React 19, TypeScript, Zustand, axios
-- **Native modules**: expo-camera (QR scan + permissions), expo-image-picker, expo-location, expo-secure-store, expo-haptics, expo-print, expo-sharing, expo-file-system, react-native-maps, react-native-qrcode-svg, @react-native-community/netinfo
-- **Backend**: FastAPI + Motor + MongoDB, JWT (PyJWT), bcrypt, httpx for OpenWeatherMap proxy
-- **Seed data**: 3 built-in templates per user (Multirotor / Fixed Wing / VTOL preflight) on registration + admin and pilot demo users
-- **Drone-type names are GENERIC** — Multirotor, Heavy Lift, Fixed Wing, VTOL, Custom (no manufacturer brands anywhere)
+## What's implemented (2026-07-16)
+### Backend (FastAPI)
+- **PDF import**: `POST /api/checklists/parse-pdf` (PyMuPDF) — parses PDF blocks into `{items:[{label, required}], count}`; returns 422 on empty PDFs.
+- **Search**: `GET /api/checklists/search?q=` — case-insensitive; correctly ordered before `/checklists/{id}` route.
+- **Detailed stats**: `GET /api/stats/detailed` — total_flights, flights_this_week, total_checklists, most_used_checklist.
+- **Maintenance overview**: `GET /api/maintenance/overview` — per drone: flights since last maintenance, `maintenance_due` (>=50), `due_soon` (>=40), `last_maintenance_at`.
+- **Log maintenance**: `POST /api/maintenance/log` — resets flight counter.
+- **Public scan**: `GET /api/public/checklist/{id}` — no auth, exposes name / drone_type / item_count for scan landing.
+- **Session length**: `ACCESS_TOKEN_DAYS = 30`.
 
-## v2 roadmap (deferred from spec)
-- Supabase migration (URL+anon key pending)
-- Fleet Map (live drone pins, airspace overlay)
-- Maintenance & Battery tracker with thresholds and push notifications
-- Team management (admin invites, pilot roles, locked checklists)
-- RevenueCat subscriptions (weekly/monthly/yearly tiers)
-- Voice dictation, OCR PDF/photo import (Tesseract or Google Vision)
-- Analytics dashboard, CSV export
-- Multi-language (Hindi as 2nd locale)
-- Biometric login (Face ID / Touch ID)
-- Live Airspace API
-- Full draw-on-canvas signatures (currently text-confirm)
-- Offline-first WatermelonDB sync layer
+### Frontend (Expo React Native)
+- Onboarding: added Skip button; persists `flyready_onboarding_done` in AsyncStorage; splash routes intelligently (`onboarding` → `login` → `home`).
+- Login: empty fields, show/hide password eye, inline error text (red under password field), improved `formatApiError` (401 / 500 / network).
+- Home: personalised greeting "Welcome back, {FirstName}", QR scan card, search bar to filter checklists, empty-state with big drone icon + "Create your first checklist" CTA, quick stats row (total flights / total checklists / this week), QR icon per checklist card (opens QR without starting flight).
+- History: total flight count at top, filter tabs (Week / Month / All time), each row shows date + operator + location + pass/fail count + duration, pull-to-refresh.
+- Profile: subscription UI removed. Dark mode switch (`AppThemeProvider`) persisted to AsyncStorage. "About FlyReady" row with version + Free & open source badge. Logout confirmation modal with red Log out button.
+- Execute: percentage next to progress bar, section headings grouped, 44×44px pass/fail buttons, per-item notes with edit icon, green Complete button when all items passed.
+- Summary: color-coded damage severity cards (None/Minor/Moderate/Critical). All `Alert.alert` replaced with Modals. Post-save navigates to `/flight/success` (big green check + Flight ID + pass/fail + View record & Back to home buttons).
+- Operator details: auto-generates Flight ID `YYYYMMDD-001`, section labels (OPERATOR / AIRCRAFT / LOCATION / WEATHER / MISSION), Begin button disabled+grey until Pilot name filled, ActivityIndicator spinner during weather / GPS fetch, all Alerts replaced with Modals.
+- QR screen: uses public URL `https://flyready-iota.vercel.app/checklist/{id}/scan`, size 280, Copy Link (expo-clipboard), Print (web), checklist name + drone type above QR, sticker text below.
+- Scan landing page (`/checklist/[id]/scan`): fetches via public endpoint, shows drone icon/name/type/items, "Start preflight" button.
+- Maintenance tab: new tab with wrench icon; per-drone card with flight count, progress to 50, status badge (OK / Due soon / Overdue), red banner if any overdue, "Log maintenance" button.
+- Fleet map: lists all drones with their last flight location, embedded Google Maps iframe (web) + "Open in Google Maps" link.
+- Global: `AppThemeProvider` applies light/dark theme immediately via `useAppTheme()`; no hardcoded credentials remain.
 
-## Auth credentials (seeded)
-- Admin: admin@flyready.app / Admin@123
-- Pilot: pilot@flyready.app / Pilot@123
+## Testing status
+- 18/18 backend tests passing (`/app/backend/tests/test_flyready_new_endpoints.py`).
+- Frontend static export verified via `expo export --platform web` — all 30 routes compile cleanly.
 
-## Environment variables
-- `MONGO_URL`, `DB_NAME`, `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `TEST_PILOT_EMAIL`, `TEST_PILOT_PASSWORD`, `OPENWEATHER_API_KEY` (optional — manual fallback used when empty)
+## Backlog / next tasks
+- P1: Dark mode support across every screen (light theme is default; only Profile fully consumes `useAppTheme` — other screens still import `lightTheme as t`; wire them up gradually).
+- P1: Push notifications for maintenance overdue (Expo notifications).
+- P2: PDF export of maintenance history.
+- P2: Multi-user roles (organisation / team).
+- P2: Offline queue for flight logs.
 
-## Key endpoints
-- `POST /api/auth/register|login`, `GET /api/auth/me`
-- `GET|POST /api/checklists`, `GET|PUT|DELETE /api/checklists/{id}`
-- `POST /api/flight_logs`, `GET /api/flight_logs/{id}`, `GET /api/flight_logs/by_checklist/{checklist_id}`, `PUT /api/flight_logs/{id}`
-- `GET /api/aircraft`, `POST /api/aircraft`
-- `GET /api/weather?lat=&lon=` (proxies OpenWeatherMap; 503 if key missing)
-- `GET /api/stats/overview`
+## Deployment
+- Push to `main` on GitHub → Render deploys backend, Vercel deploys frontend.
+- Environment vars: backend needs `MONGO_URL`, `DB_NAME`, `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `OPENWEATHER_API_KEY`. Frontend needs `EXPO_PUBLIC_BACKEND_URL`.
